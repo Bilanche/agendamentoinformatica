@@ -182,42 +182,35 @@
     </div>
 
     <script type="module">
-        // Firebase Imports via CDN
+        // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, Timestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js"; // Importação para Analytics
 
-        // ATENÇÃO: Substitua os valores abaixo pelos dados REAIS do SEU projeto Firebase!
-        // Você encontra esses dados no console do Firebase:
-        // Configurações do projeto (⚙️) > Geral > Seus apps > (Selecione seu app da web) > Configuração (Objeto firebaseConfig)
-        const firebaseConfig = {
-            apiKey: "AIzaSyB69LdUvokkJyVFfSfrLwJkgBzj1FlRb7I",
-            authDomain: "sistema-de-agendamento-semanal.firebaseapp.com",
-            projectId: "sistema-de-agendamento-semanal",
-            storageBucket: "sistema-de-agendamento-semanal.firebasestorage.app",
-            messagingSenderId: "355434646626",
-            appId: "1:355434646626:web:351c98517070f7bc31553b",
-            measurementId: "G-FCNT46YMJL" // Opcional, mas presente no seu exemplo
+        // Firebase Config
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "YOUR_API_KEY", 
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         // Firebase Initialization
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const analytics = getAnalytics(app); // Inicializa o Analytics
         
         // Global Constants and Variables
-        // ATENÇÃO: Se você mudar 'agendamento-id-aplicacao' abaixo, 
-        // lembre-se de usar o mesmo valor nas suas Regras de Segurança do Firestore.
-        const appId = 'agendamento-id-aplicacao'; // ID específico para este app, usado no caminho do Firestore
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let currentUserId = null;
         let isAuthReady = false;
 
         const DAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
-        const TIMESLOTS_FUNDAMENTAL = [ 
+        const TIMESLOTS_FUNDAMENTAL = [ // Horário 11:30-12:20 removido
             "07:00-07:50", "07:50-08:40", "09:00-09:50", "09:50-10:40", "10:40-11:30",
-            "12:20-13:10", "13:10-14:00", "14:20-15:10", "15:10-16:00"
+            /*"11:30-12:20",*/ "12:20-13:10", "13:10-14:00", "14:20-15:10", "15:10-16:00"
         ];
         const TIMESLOTS_MEDIO = [
             "07:00-07:50", "07:50-08:40", "08:40-09:30", "09:50-10:40", "10:40-11:30", 
@@ -276,8 +269,11 @@
                     userIdDisplay.textContent = currentUserId;
                 } else {
                     try {
-                        // No __initial_auth_token for public deployment, rely on anonymous
-                        await signInAnonymously(auth);
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
                     } catch (error) {
                         console.error("Authentication Error:", error);
                         userIdDisplay.textContent = "Authentication Failed";
@@ -407,7 +403,7 @@
                     const slotBookings = bookingsCache.filter(b => b.date === dateStr && b.timeSlot === timeSlot);
 
                     const labCell = document.getElementById(`lab-${dateStr}-${timeSlot}`);
-                    if (labCell) { 
+                    if (labCell) { // Check if cell exists for the current timeslot
                         const labBooking = slotBookings.find(b => b.resourceType === 'lab');
                         const labStatusEl = labCell.querySelector('.status');
                         const labBookedByEl = labCell.querySelector('.booked-by');
@@ -433,7 +429,7 @@
 
 
                     const chromeCell = document.getElementById(`chromebooks-${dateStr}-${timeSlot}`);
-                    if (chromeCell) { 
+                    if (chromeCell) { // Check if cell exists
                         const chromebookBookings = slotBookings.filter(b => b.resourceType === 'chromebooks');
                         let bookedChromebooksCount = 0;
                         let chromeBookedByHtml = "";
@@ -474,7 +470,7 @@
                     }
                     
                     const tabletCell = document.getElementById(`tablets-${dateStr}-${timeSlot}`);
-                    if (tabletCell) { 
+                    if (tabletCell) { // Check if cell exists
                         const tabletBookings = slotBookings.filter(b => b.resourceType === 'tablets');
                         let bookedTabletsCount = 0;
                         let tabletBookedByHtml = "";
@@ -562,7 +558,7 @@
 
             onSnapshot(q, (snapshot) => {
                 bookingsCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (scheduleContainer.classList.contains('hidden') === false) { 
+                if (scheduleContainer.classList.contains('hidden') === false) { // Only update if schedule is visible
                     updateGridWithBookings();
                 }
             }, (error) => {
